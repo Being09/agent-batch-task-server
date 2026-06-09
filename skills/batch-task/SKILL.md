@@ -1,3 +1,8 @@
+---
+name: batch-task
+description: "Zero-dependency batch task server for AI agents. Split, dispatch, collect with file-lock concurrency safety. New task type = one YAML."
+---
+
 # Batch Task Worker & Orchestrator
 
 > 通用批量任务处理 Skill — 让 Coding Agent 通过 Pull-Push 模式可靠地处理任意类型的批量任务。
