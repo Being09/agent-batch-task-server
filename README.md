@@ -23,21 +23,23 @@ Server 管理队列、状态机、超时回收、进度持久化；Agent 只负�
 ## 设计文档
 
 - [通用批量任务服务器架构设计](docs/generic-batch-server-design.md) — 三层分离设计、Task Type Config、文件锁并发安全、Python/Node.js 零依赖实现
-## 项目结构（规划）
+## 项目结构
 
 ```
 agent-batch-task-server/
 ├── docs/
 │   └── generic-batch-server-design.md
-├── server/
-│   ├── python/
-│   │   └── server.py             # Python 版（~140 行，stdlib only）
-│   ├── node/
-│   │   └── server.js             # Node.js 版（~170 行，built-in only）
-│   └── task_types/
-│       ├── entity_extraction.yaml
-│       └── code_review.yaml
 ├── skills/
-│   └── SKILL.md                 # 通用 Worker Skill 模板
-└── examples/
+│   └── batch-task/                # ← 可分发 Skill 包（整体复制到 ~/.config/opencode/skills/）
+│       ├── SKILL.md                 # Skill 入口
+│       └── server/
+│           ├── python/
+│           │   └── server.py          # Python 版（stdlib only）
+│           ├── node/
+│           │   └── server.js          # Node.js 版（built-in only）
+│           └── task_types/
+│               ├── entity_extraction.yaml
+│               ├── code_review.yaml
+│               └── batch_translation.yaml
+└── README.md
 ```
