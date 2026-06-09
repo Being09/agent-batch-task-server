@@ -1,0 +1,38 @@
+name: batch_translation
+description: "批量翻译文本片段"
+
+split:
+  method: json_array
+  source: "./data/articles.json"
+  params:
+    items_per_task: 1
+
+task_input:
+  id: { type: string }
+  title: { type: string, required: true }
+  content: { type: string, required: true }
+  source_lang: { type: string }
+  target_lang: { type: string }
+
+task_output:
+  translated_title: { type: string, required: true }
+  translated_content: { type: string, required: true }
+  quality_score: { type: number, range: [0, 1], description: "翻译质量自评" }
+
+validation:
+  - field: "translated_content"
+    rules:
+      - min_length: 50
+
+worker_prompt: |
+  将给定文本从 {source_lang} 翻译为 {target_lang}。
+  保持原文语气和格式。对翻译质量进行自评打分。
+
+constraints:
+  max_time_per_task: 30
+  max_retries: 3
+
+aggregation:
+  method: merge
+  output_format: json
+  output_path: "./output/translated_articles.json"

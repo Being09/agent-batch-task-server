@@ -1,0 +1,52 @@
+name: code_review
+description: "批量审查代码文件，找出 bug、安全问题、规范问题"
+
+split:
+  method: file_per_item
+  source: "./src/**/*.py"
+  params:
+    include_content: true
+    max_file_size: 50000
+
+task_input:
+  file_path: { type: string, required: true }
+  file_content: { type: string, required: true }
+  language: { type: string }
+  line_count: { type: integer }
+
+task_output:
+  issues:
+    type: array
+    required: true
+    items:
+      severity:    { type: string, required: true, enum: [critical, warning, info, style] }
+      line:        { type: integer, required: true, range: [1, 99999] }
+      message:     { type: string, required: true, min_length: 10 }
+      suggestion:  { type: string }
+      rule_id:     { type: string }
+  summary:
+    type: string
+    description: "该文件整体评价"
+
+validation:
+  - field: "issues[].severity"
+    rules:
+      - in_enum: [critical, warning, info, style]
+  - field: "issues[].line"
+    rules:
+      - max_value_field: "task_input.line_count"
+
+worker_prompt: |
+  你是高级代码审查员。逐行审查给定代码文件。
+  关注：bug、安全漏洞、性能问题、代码规范。
+  每个问题标注严重程度(critical/warning/info/style)、行号、说明和修复建议。
+  如果没有发现问题，返回空 issues 数组和总结。
+
+constraints:
+  max_time_per_task: 120
+  max_retries: 3
+
+aggregation:
+  method: concat
+  output_format: json
+  output_path: "./output/review_report.json"

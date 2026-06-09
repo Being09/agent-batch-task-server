@@ -1,0 +1,58 @@
+name: entity_extraction
+description: "从文本中提取实体和关系，构建知识图谱"
+
+split:
+  method: text_chunk
+  source: "./data/source_text.txt"
+  params:
+    chunk_size: 2000
+    overlap: 200
+    respect_sentence: true
+
+task_input:
+  chunk_id: { type: string }
+  content: { type: string, required: true, description: "文本片段" }
+  chunk_index: { type: integer, description: "在原文中的序号" }
+
+task_output:
+  entities:
+    type: array
+    required: true
+    min_items: 1
+    description: "提取的实体列表"
+    items:
+      name:       { type: string, required: true }
+      type:       { type: string, required: true, enum: [PERSON, ORG, LOC, EVENT] }
+      confidence: { type: number, range: [0, 1] }
+      mentions:   { type: array, items: { type: string } }
+  relations:
+    type: array
+    items:
+      from:     { type: string, required: true }
+      to:       { type: string, required: true }
+      type:     { type: string, enum: [KNOWS, WORKS_FOR, LOCATED_IN, PARTICIPATED_IN] }
+      strength: { type: number, range: [1, 10] }
+
+validation:
+  - field: "entities"
+    rules:
+      - unique: ["name", "type"]
+  - field: "relations"
+    rules:
+      - reference_exists: ["from", "entities.name"]
+      - reference_exists: ["to", "entities.name"]
+
+worker_prompt: |
+  你是知识图谱构建专家。分析给定文本片段，提取所有命名实体和它们之间的关系。
+  严格返回 JSON 格式。实体类型仅限 PERSON/ORG/LOC/EVENT。
+  关系 strength 为 1-10 的整数，10 表示最强关联。
+  每个关系的 from/to 必须引用已提取的实体 name。
+
+constraints:
+  max_time_per_task: 60
+  max_retries: 3
+
+aggregation:
+  method: merge
+  output_format: json
+  output_path: "./output/kg.json"
