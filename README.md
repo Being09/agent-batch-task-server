@@ -37,7 +37,7 @@
 
 ```bash
 # 通过 skills.sh 安装（推荐）
-npx skills add yourname/batch-task-skill
+npx skills add Being09/agent-batch-task-server
 
 # 或手动复制
 cp -r skills/batch-task/ ~/.config/opencode/skills/batch-task/
