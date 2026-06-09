@@ -16,6 +16,12 @@ const http  = require("http");
 const fs    = require("fs");
 const path  = require("path");
 
+// ── 日志 ──────────────────────────────────────
+function log(msg) {
+    const ts = new Date().toISOString().slice(11, 19);
+    console.log(`[${ts}] ${msg}`);
+}
+
 // ── 路径与配置 ──────────────────────────────────
 const DATA_DIR    = path.join(process.cwd(), ".batch_data");
 const QUEUE       = path.join(DATA_DIR, "queue.json");
@@ -91,7 +97,7 @@ async function withQueue(fn) {
 
 // ── 核心业务逻辑 ─────────────────────────────────
 async function addTasks(batchId, taskType, tasks, maxRetries = 3) {
-    return await withQueue(data => {
+    const r = await withQueue(data => {
         const now = new Date().toISOString();
         let n = 0;
         for (const t of tasks) {
@@ -108,10 +114,11 @@ async function addTasks(batchId, taskType, tasks, maxRetries = 3) {
         }
         return { batch_id: batchId, accepted: n };
     });
-}
+    log(`BATCH  +${r.accepted} tasks | batch=${batchId} type=${taskType} total=${tasks.length}`);
+    return r;
 
 async function getNextTask() {
-    return await withQueue(data => {
+    const result = await withQueue(data => {
         const now = new Date().toISOString();
         for (const t of Object.values(data.tasks)) {
             if (t.state === "pending") {
@@ -122,10 +129,12 @@ async function getNextTask() {
         }
         return null;
     });
-}
+    if (result) log(`DISPATCH task_id=${result.task_id} type=${result.task_type}`);
+    else log("QUEUE  empty (no pending tasks)");
+    return result;
 
 async function submitResult(taskId, result) {
-    return await withQueue(data => {
+    const r = await withQueue(data => {
         const t = data.tasks[taskId];
         if (!t)     return { data: { task_id: taskId, status: "not_found" }, code: 404 };
         if (t.state === "completed")
@@ -135,7 +144,8 @@ async function submitResult(taskId, result) {
         t.completed_at = new Date().toISOString();
         return { data: { task_id: taskId, status: "completed" }, code: 200 };
     });
-}
+    log(`RESULT  task_id=${r.data.task_id} status=${r.data.status} code=${r.code}`);
+    return r;
 
 async function getProgress() {
     return await withQueue(data => {
@@ -180,6 +190,7 @@ function startReaper() {
         try {
             await withQueue(data => {
                 const cutoff = Date.now() - TIMEOUT;
+                reaped = 0;
                 for (const t of Object.values(data.tasks)) {
                     if (t.state !== "dispatched") continue;
                     if (new Date(t.dispatched_at) >= cutoff) continue;
@@ -187,13 +198,17 @@ function startReaper() {
                     if (t.retry_count >= t.max_retries) {
                         t.state = "permanently_failed";
                         t.last_error = "Exceeded max retries";
+                        log(`REAPER  FAIL task_id=${t.task_id} retries=${t.retry_count}`);
                     } else {
                         t.state = "pending";
                         t.dispatched_at = null;
+                        log(`REAPER  REQUEUE task_id=${t.task_id} retry=${t.retry_count}`);
                     }
+                    reaped++;
                 }
+                if (reaped) log(`REAPER  ${reaped} stale tasks reclaimed`);
             });
-        } catch (e) { console.error("[reaper]", e.message); }
+        } catch (e) { log(`REAPER  error: ${e.message}`); }
     }, REAPER_MS);
 }
 
@@ -257,14 +272,19 @@ async function handle(req, res) {
 if (require.main === module) {
     const port = parseInt(process.argv[2]) || 5050;
     init();
+    log(`Batch Task Server → http://localhost:${port}`);
+    log(`Data: ${DATA_DIR} | Lock timeout: ${LOCK_TIMEOUT_MS}ms | Task timeout: ${TIMEOUT}ms`);
     startReaper();
-    const srv = http.createServer((req, res) =>
+    log("Reaper interval started");
+    const srv = http.createServer((req, res) => {
+        // HTTP 请求日志
+        if (req.url !== "/health") log(`HTTP ${req.method} ${req.url}`);
         handle(req, res).catch(e => {
             res.writeHead(500);
             res.end(JSON.stringify({ error: e.message }));
-        })
-    );
+        });
+    });
     srv.listen(port, "0.0.0.0", () => {
-        console.log(`Batch Task Server → http://localhost:${port}`);
+        log(`Listening on 0.0.0.0:${port}`);
     });
 }

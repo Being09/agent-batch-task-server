@@ -21,6 +21,10 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import datetime, timedelta
 from pathlib import Path
 
+# ── 日志 ──────────────────────────────────────
+def log(msg):
+    """统一日志输出，带时间戳"""
+    print(f"[{datetime.utcnow().strftime('%H:%M:%S')}] {msg}")
 
 # ── 路径与配置 ──────────────────────────────────
 DATA     = Path(".batch_data")
@@ -161,7 +165,9 @@ def add_tasks(batch_id, task_type, tasks, max_retries=3):
                 count += 1
         return count
 
-    return {"batch_id": batch_id, "accepted": _write(fn)}
+    n = _write(fn)
+    log(f"BATCH  +{n} tasks | batch={batch_id} type={task_type} total={len(tasks)}")
+    return {"batch_id": batch_id, "accepted": n}
 
 
 def get_next_task():
@@ -180,7 +186,12 @@ def get_next_task():
                 }
         return None
 
-    return _write(fn)
+    task = _write(fn)
+    if task:
+        log(f"DISPATCH task_id={task['task_id']} type={task['task_type']}")
+    else:
+        log("QUEUE  empty (no pending tasks)")
+    return task
 
 
 def submit_result(task_id, result):
@@ -198,6 +209,7 @@ def submit_result(task_id, result):
         return ("completed", 200)
 
     status, code = _write(fn)
+    log(f"RESULT  task_id={task_id} status={status} code={code}")
     return {"task_id": task_id, "status": status}, code
 
 
@@ -235,6 +247,7 @@ def register_config(name, config):
         json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     return {"name": name, "registered": True}
+    log(f"CONFIG registered: {name}")
 
 
 def get_config(name):
@@ -279,21 +292,26 @@ def reaper():
 
         def _reap(data):
             cutoff = (datetime.utcnow() - timedelta(seconds=TIMEOUT)).isoformat()
-            for t in data["tasks"].values():
-                if t["state"] != "dispatched" or t["dispatched_at"] >= cutoff:
-                    continue
-                t["retry_count"] += 1
-                if t["retry_count"] >= t["max_retries"]:
-                    t["state"] = "permanently_failed"
-                    t["last_error"] = "Exceeded max retries"
-                else:
-                    t["state"] = "pending"
-                    t["dispatched_at"] = None
+                reaped = 0
+                for t in data["tasks"].values():
+                    if t["state"] != "dispatched" or t["dispatched_at"] >= cutoff:
+                        continue
+                    t["retry_count"] += 1
+                    if t["retry_count"] >= t["max_retries"]:
+                        t["state"] = "permanently_failed"
+                        t["last_error"] = "Exceeded max retries"
+                        log(f"REAPER  FAIL task_id={t['task_id']} retries={t['retry_count']}")
+                    else:
+                        t["state"] = "pending"
+                        t["dispatched_at"] = None
+                        log(f"REAPER  REQUEUE task_id={t['task_id']} retry={t['retry_count']}")
+                    reaped += 1
+                if reaped:
+                    log(f"REAPER  {reaped} stale tasks reclaimed")
 
-        try:
             _write(_reap)
         except Exception as e:
-            print(f"[reaper] {e}")
+            log(f"REAPER  error: {e}")
 
 
 # ── HTTP Handler ──────────────────────────────────
@@ -348,15 +366,20 @@ class Handler(BaseHTTPRequestHandler):
             return self._j(200, {"ack": True})
         self._j(404, {"error": "not found"})
 
-    def log_message(self, *a):
-        print(f"[{datetime.utcnow().isoformat()}] {a[0]}")
-
+    def log_message(self, code, size):
+        """HTTP 请求日志（心跳不输出）"""
+        if self.path == "/health":
+            return
+        log(f"HTTP {self.command} {self.path} → {code} ({size}B)")
 
 # ── 启动入口 ─────────────────────────────────────
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 5050
     init()
+    log(f"Batch Task Server → http://localhost:{port}")
+    log(f"Data: {DATA.resolve()} | Lock timeout: {LOCK_TIMEOUT}s | Task timeout: {TIMEOUT}s")
     threading.Thread(target=reaper, daemon=True).start()
+    log("Reaper daemon started")
     srv = HTTPServer(("0.0.0.0", port), Handler)
-    print(f"Batch Task Server → http://localhost:{port}")
+    log(f"Listening on 0.0.0.0:{port}")
     srv.serve_forever()
