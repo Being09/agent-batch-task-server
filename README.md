@@ -1,50 +1,56 @@
 # Batch Task Skill
 
+<p>
+  <img src="https://img.shields.io/badge/Python-stdlib%20only-blue?logo=python&logoColor=white" alt="Python stdlib" />
+  <img src="https://img.shields.io/badge/Node.js-built%20in%20only-339933?logo=node.js&logoColor=white" alt="Node.js built-in" />
+  <img src="https://img.shields.io/badge/zero-dependencies-success" alt="Zero dependencies" />
+  <img src="https://img.shields.io/badge/file-lock%20concurrency-safe-brightgreen" alt="Concurrency safe" />
+  <img src="https://img.shields.io/badge/crash-safe-orange" alt="Crash safe" />
+</p>
+
 > 通用批量任务处理 Skill — 让 Coding Agent 通过 Pull-Push 模式可靠地处理任意类型的批量任务。
 
-Python / Node.js 零外部依赖，一行命令启动，YAML 配置接入新任务类型。
+---
+
+⚡ **将超出 LLM 单次上下文长度的超大任务，拆分为可并行处理的小任务，突破上下文窗口限制。**
 
 ## 适用场景
 
-> 核心价值：**将超出 LLM 单次上下文长度的超大任务，拆分为可并行处理的小任务，突破上下文窗口限制。**
-
-- **批量代码审查** — 50 个文件分发给多个 Agent 并行审查，结果自动汇总
-- **批量实体提取** — 长文档拆分为片段，并行提取实体和关系，构建知识图谱
-- **批量翻译** — 大量文本片段分发给 Agent 翻译，进度持久化不怕中断
-- **批量数据标注** — 数据集拆分为小任务，多个 Agent 并行标注
-- **批量测试生成** — 为每个源文件生成单元测试，并行处理
+- 📂 **批量代码审查** — 50 个文件分发给多个 Agent 并行审查，结果自动汇总
+- 🔗 **批量实体提取** — 长文档拆分为片段，并行提取实体和关系，构建知识图谱
+- 🌐 **批量翻译** — 大量文本片段分发给 Agent 翻译，进度持久化不怕中断
+- 🏷️ **批量数据标注** — 数据集拆分为小任务，多个 Agent 并行标注
+- 🧪 **批量测试生成** — 为每个源文件生成单元测试，并行处理
 
 ## 优点
 
-- **零依赖** — Python / Node.js 纯标准库，无需 pip install / npm install
-- **一行启动** — `python server.py 5050`，无需数据库、消息队列等外部服务
-- **并发安全** — PID 文件锁 + 原子写入，多 Worker 不重复处理同一任务
-- **崩溃不丢** — 任务进度持久化到磁盘，重启后自动恢复
-- **超时回收** — Worker 崩溃后 Server 自动回收卡住的任务重新分发
-- **YAML 接入** — 新任务类型只需写一个配置文件，Server 和 Skill 零修改
+- 🚫 **零依赖** — Python / Node.js 纯标准库，无需 pip install / npm install
+- 🏃 **一行启动** — `python server.py 5050`，无需数据库、消息队列等外部服务
+- 🔒 **并发安全** — PID 文件锁 + 原子写入，多 Worker 不重复处理同一任务
+- 💾 **崩溃不丢** — 任务进度持久化到磁盘，重启后自动恢复
+- ⏰ **超时回收** — Worker 崩溃后 Server 自动回收卡住的任务重新分发
+- 📝 **YAML 接入** — 新任务类型只需写一个配置文件，Server 和 Skill 零修改
 
 ## 快速开始
 
 ### 1. 安装
 
-将 `skills/batch-task/` 目录复制到 Skill 宿主的 skills 目录：
-
 ```bash
-# OpenCode
-cp -r skills/batch-task/ ~/.config/opencode/skills/batch-task/
+# 通过 skills.sh 安装（推荐）
+npx skills add yourname/batch-task-skill
 
-# Claude Code
-cp -r skills/batch-task/ ~/.claude/skills/batch-task/
+# 或手动复制
+cp -r skills/batch-task/ ~/.config/opencode/skills/batch-task/
 ```
 
 ### 2. 启动 Server
 
 ```bash
 # Python（零依赖）
-python ~/.config/opencode/skills/batch-task/server/python/server.py 5050
+python server/python/server.py 5050
 
 # 或 Node.js（零依赖）
-node ~/.config/opencode/skills/batch-task/server/node/server.js 5050
+node server/node/server.js 5050
 ```
 
 输出：`Batch Task Server → http://localhost:5050`
@@ -96,19 +102,19 @@ Batch Task Skill 通过 **Pull-Push 架构** 解决这三个问题：
 ```
                     ┌──────────────────────────────┐
    POST /batch      │                              │   GET /progress
-──────────────────► │      Task Server (零依赖)     │ ◄─────────────────
-                    │  ┌─────────────────────────┐  │
-                    │  │ queue.json (原子写入)    │  │
-                    │  │ queue.lock (PID 文件锁)   │  │
-                    │  │ Reaper (超时回收守护线程) │  │
-                    │  └─────────────────────────┘  │
-                    └──────┬───────────────────────┘
-                           │                         │
-              GET /next_task ◄─────────────────────► │ POST /result
-                           │                         │
-                    ┌──────┴──────┐        ┌───────┴──────┐
-                    │  Worker #1  │  ...   │  Worker #N   │
-                    └─────────────┘        └──────────────┘
+ ──────────────────► │      Task Server (零依赖)     │ ◄─────────────────
+                     │  ┌─────────────────────────┐  │
+                     │  │ queue.json (原子写入)    │  │
+                     │  │ queue.lock (PID 文件锁)   │  │
+                     │  │ Reaper (超时回收守护线程) │  │
+                     │  └─────────────────────────┘  │
+                     └──────┬───────────────────────┘
+                            │                         │
+               GET /next_task ◄─────────────────────► │ POST /result
+                            │                         │
+                     ┌──────┴──────┐        ┌───────┴──────┐
+                     │  Worker #1  │  ...   │  Worker #N   │
+                     └─────────────┘        └──────────────┘
 ```
 
 **Orchestrator** 只负责编排（提交任务、发射 Worker、监控进度），**Worker** 只负责执行（拉取→处理→提交）。Server 是唯一的真相来源。
@@ -127,14 +133,14 @@ Batch Task Skill 通过 **Pull-Push 架构** 解决这三个问题：
 
 ```
 创建 → Pending → Dispatched → Completed
-                  │              ↑
-                  │  超时回收      │  重新分发(retry<max)
-                  │  (retry+1)    │
-                  └──────┘
-                         │
-                    retry>=max
-                         ↓
-                  PermanentlyFailed
+                   │              ↑
+                   │  超时回收      │  重新分发(retry<max)
+                   │  (retry+1)    │
+                   └──────┘
+                          │
+                     retry>=max
+                          ↓
+                   PermanentlyFailed
 ```
 
 ### 并发安全机制
