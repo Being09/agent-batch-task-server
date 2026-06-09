@@ -23,7 +23,7 @@ from pathlib import Path
 
 
 # ── 路径与配置 ──────────────────────────────────
-DATA     = Path("batch_data")
+DATA     = Path(".batch_data")
 QUEUE    = DATA / "queue.json"
 LOCK     = DATA / "queue.lock"
 CFGS     = DATA / "configs"

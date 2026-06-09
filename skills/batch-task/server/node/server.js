@@ -17,7 +17,7 @@ const fs    = require("fs");
 const path  = require("path");
 
 // ── 路径与配置 ──────────────────────────────────
-const DATA_DIR    = path.join(process.cwd(), "batch_data");
+const DATA_DIR    = path.join(process.cwd(), ".batch_data");
 const QUEUE       = path.join(DATA_DIR, "queue.json");
 const LOCK_FILE   = path.join(DATA_DIR, "queue.lock");
 const CFGS_DIR    = path.join(DATA_DIR, "configs");
