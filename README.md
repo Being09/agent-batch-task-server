@@ -43,17 +43,17 @@ npx skills add Being09/agent-batch-task-server
 cp -r skills/batch-task/ ~/.config/opencode/skills/batch-task/
 ```
 
-### 2. 启动 Server
+### 2. 启动 Server（后台运行，不阻塞 Agent）
 
 ```bash
-# Python（零依赖）
-python server/python/server.py 5050
+# Python（零依赖，后台运行）
+python server/python/server.py 5050 &
 
-# 或 Node.js（零依赖）
-node server/node/server.js 5050
+# 或 Node.js（零依赖，后台运行）
+node server/node/server.js 5050 &
 ```
 
-输出：`Batch Task Server → http://localhost:5050`
+Server 以后台进程启动，Agent 应使用非阻塞方式执行此命令。
 
 ### 3. 作为 Orchestrator 使用
 

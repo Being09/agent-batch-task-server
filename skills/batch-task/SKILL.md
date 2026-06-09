@@ -43,16 +43,19 @@ batch-task-skill/
 
 ### 步骤
 
-1. **启动 Task Server**
+1. **后台启动 Task Server**（不阻塞主 Agent 流程）
    ```bash
-   # Python（零依赖）
-   python {skill_path}/server/python/server.py 5050
-   # 或 Node.js（零依赖）
-   node {skill_path}/server/node/server.js 5050
-   ```
+   # Python（零依赖，后台运行）
+   python {skill_path}/server/python/server.py 5050 &
 
-2. **等待就绪**
+   # 或 Node.js（零依赖，后台运行）
+   node {skill_path}/server/node/server.js 5050 &
    ```
+   > Agent 应使用 Bash 工具后台执行 Server 启动命令，不应阻塞后续步骤。
+
+2. **等待 Server 就绪**
+   ```bash
+   # 轮询健康检查直到 Server 可用（最多等待 10 秒）
    GET http://localhost:5050/health → {"status": "healthy"}
    ```
 
