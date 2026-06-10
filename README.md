@@ -49,14 +49,21 @@ Agent 应使用自身的后台执行机制（如 `run_in_background=true`）启�
 
 ```bash
 # Python（零依赖）
-python server/python/server.py 5050
+# Windows PowerShell:
+Start-Process python -ArgumentList "server/python/server.py","5050" -WindowStyle Hidden
+# Linux/macOS:
+python server/python/server.py 5050 &
 
 # 或 Node.js（零依赖）
-node server/node/server.js 5050
+# Windows PowerShell:
+Start-Process node -ArgumentList "server/node/server.js","5050" -WindowStyle Hidden
+# Linux/macOS:
+node server/node/server.js 5050 &
 ```
 
-> **Windows 注意**: 不要使用 `Start-Process -NoNewWindow`，它会阻塞调用者。
-> 使用 Agent 的后台机制，或新开终端窗口。
+> **Windows**: `Start-Process ... -WindowStyle Hidden` 脱离终端运行。
+> **Linux/macOS**: `&` 后台运行，或用 Agent 的 `run_in_background=true`。
+> **不要用** `Start-Process -NoNewWindow`（会阻塞）。
 
 ### 3. 作为 Orchestrator 使用
 

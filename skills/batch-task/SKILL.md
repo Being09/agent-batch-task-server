@@ -54,14 +54,21 @@ batch-task-skill/
 
    ```bash
    # Python（零依赖）
-   python {skill_path}/server/python/server.py 5050
+   # Windows PowerShell:
+   Start-Process python -ArgumentList "{skill_path}/server/python/server.py","5050" -WindowStyle Hidden
+   # Linux/macOS:
+   python {skill_path}/server/python/server.py 5050 &
 
    # 或 Node.js（零依赖）
-   node {skill_path}/server/node/server.js 5050
+   # Windows PowerShell:
+   Start-Process node -ArgumentList "{skill_path}/server/node/server.js","5050" -WindowStyle Hidden
+   # Linux/macOS:
+   node {skill_path}/server/node/server.js 5050 &
    ```
 
-   > **Windows 注意**: 不要使用 `Start-Process -NoNewWindow`，它会阻塞调用者。
-   > 直接用 Agent 的后台机制，或新开终端窗口启动。
+   > **Windows**: 使用 `Start-Process ... -WindowStyle Hidden` 脱离终端运行。
+   > **Linux/macOS**: 使用 `&` 后台运行，或用 Agent 的 `run_in_background=true`。
+   > **不要用** `Start-Process -NoNewWindow`（会阻塞调用者）。
 
 2. **等待 Server 就绪**
    ```bash

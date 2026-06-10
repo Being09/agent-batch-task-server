@@ -331,7 +331,6 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.end_headers()
         self.wfile.write(json.dumps(d, ensure_ascii=False).encode())
-
     def do_GET(self):
         if self.path == "/health":
             return self._j(200, {"status": "healthy"})
@@ -375,11 +374,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._j(200, {"status": "shutting_down"})
         self._j(404, {"error": "not found"})
 
-    def log_message(self, code, size):
+    def log_message(self, fmt, *args):
         """HTTP 请求日志（心跳不输出）"""
-        if self.path == "/health":
+        if self.path == "/heartbeat":
             return
-        log(f"HTTP {self.command} {self.path} → {code} ({size}B)")
+        log(f"HTTP {self.command} {self.path}")
 
 # ── 启动入口 ─────────────────────────────────────
 if __name__ == "__main__":
