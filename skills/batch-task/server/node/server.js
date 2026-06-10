@@ -116,6 +116,7 @@ async function addTasks(batchId, taskType, tasks, maxRetries = 3) {
     });
     log(`BATCH  +${r.accepted} tasks | batch=${batchId} type=${taskType} total=${tasks.length}`);
     return r;
+}
 
 async function getNextTask() {
     const result = await withQueue(data => {
@@ -132,6 +133,7 @@ async function getNextTask() {
     if (result) log(`DISPATCH task_id=${result.task_id} type=${result.task_type}`);
     else log("QUEUE  empty (no pending tasks)");
     return result;
+}
 
 async function submitResult(taskId, result) {
     const r = await withQueue(data => {
@@ -146,6 +148,7 @@ async function submitResult(taskId, result) {
     });
     log(`RESULT  task_id=${r.data.task_id} status=${r.data.status} code=${r.code}`);
     return r;
+}
 
 async function getProgress() {
     return await withQueue(data => {

@@ -18,13 +18,17 @@ import sys
 import time
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 # ── 日志 ──────────────────────────────────────
+def _now():
+    """UTC 时间，无 tzinfo（兼容旧代码的 isoformat）"""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
 def log(msg):
     """统一日志输出，带时间戳"""
-    print(f"[{datetime.utcnow().strftime('%H:%M:%S')}] {msg}")
+    print(f"[{_now().strftime('%H:%M:%S')}] {msg}")
 
 # ── 路径与配置 ──────────────────────────────────
 DATA     = Path(".batch_data")
@@ -143,7 +147,7 @@ def add_tasks(batch_id, task_type, tasks, max_retries=3):
     """批量添加任务（幂等: 已存在的 task_id 自动跳过）"""
 
     def fn(data):
-        now = datetime.utcnow().isoformat()
+        now = _now().isoformat()
         count = 0
         for t in tasks:
             tid = t["task_id"]
@@ -174,7 +178,7 @@ def get_next_task():
     """原子出队: 取首个 pending 任务，标记 dispatched"""
 
     def fn(data):
-        now = datetime.utcnow().isoformat()
+        now = _now().isoformat()
         for t in data["tasks"].values():
             if t["state"] == "pending":
                 t["state"] = "dispatched"
@@ -205,7 +209,7 @@ def submit_result(task_id, result):
             return ("already_completed", 200)
         t["state"] = "completed"
         t["result"] = result
-        t["completed_at"] = datetime.utcnow().isoformat()
+        t["completed_at"] = _now().isoformat()
         return ("completed", 200)
 
     status, code = _write(fn)
@@ -260,7 +264,7 @@ def get_stale():
     """查询超时卡住的任务"""
 
     def fn(data):
-        cutoff = (datetime.utcnow() - timedelta(seconds=TIMEOUT)).isoformat()
+        cutoff = (_now() - timedelta(seconds=TIMEOUT)).isoformat()
         return [
             {"task_id": t["task_id"], "dispatched_at": t["dispatched_at"]}
             for t in data["tasks"].values()
@@ -291,24 +295,25 @@ def reaper():
         time.sleep(REAPER_S)
 
         def _reap(data):
-            cutoff = (datetime.utcnow() - timedelta(seconds=TIMEOUT)).isoformat()
-                reaped = 0
-                for t in data["tasks"].values():
-                    if t["state"] != "dispatched" or t["dispatched_at"] >= cutoff:
-                        continue
-                    t["retry_count"] += 1
-                    if t["retry_count"] >= t["max_retries"]:
-                        t["state"] = "permanently_failed"
-                        t["last_error"] = "Exceeded max retries"
-                        log(f"REAPER  FAIL task_id={t['task_id']} retries={t['retry_count']}")
-                    else:
-                        t["state"] = "pending"
-                        t["dispatched_at"] = None
-                        log(f"REAPER  REQUEUE task_id={t['task_id']} retry={t['retry_count']}")
-                    reaped += 1
-                if reaped:
-                    log(f"REAPER  {reaped} stale tasks reclaimed")
+            cutoff = (_now() - timedelta(seconds=TIMEOUT)).isoformat()
+            reaped = 0
+            for t in data["tasks"].values():
+                if t["state"] != "dispatched" or t["dispatched_at"] >= cutoff:
+                    continue
+                t["retry_count"] += 1
+                if t["retry_count"] >= t["max_retries"]:
+                    t["state"] = "permanently_failed"
+                    t["last_error"] = "Exceeded max retries"
+                    log(f"REAPER  FAIL task_id={t['task_id']} retries={t['retry_count']}")
+                else:
+                    t["state"] = "pending"
+                    t["dispatched_at"] = None
+                    log(f"REAPER  REQUEUE task_id={t['task_id']} retry={t['retry_count']}")
+                reaped += 1
+            if reaped:
+                log(f"REAPER  {reaped} stale tasks reclaimed")
 
+        try:
             _write(_reap)
         except Exception as e:
             log(f"REAPER  error: {e}")
