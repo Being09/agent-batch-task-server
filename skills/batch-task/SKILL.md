@@ -98,9 +98,14 @@ batch-task-skill/
    ```
    每 30 秒查询一次，直到 `progress_percent == 100`
 
-7. **收集结果**
+7. **收集结果并保存**
    ```
-   GET http://localhost:5050/results → { "chunk_001": {...}, "chunk_002": {...} }
+   GET http://localhost:5050/results -> { "chunk_001": {...}, "chunk_002": {...} }
+   ```
+   将收集到的结果保存到 `.batch_data/results.json`（Server 数据目录下，随项目持久化）：
+   ```json
+   // .batch_data/results.json
+   { "chunk_001": {"entities": [...], "relations": [...]}, ... }
    ```
 
 8. **关闭服务器**

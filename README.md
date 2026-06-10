@@ -66,7 +66,7 @@ node server/node/server.js 5050 &
 2. POST /batch      → 提交批量任务
 3. 发射 Worker × N  → 每个 Worker 加载本 Skill 的 Worker 模式
 4. GET /progress    → 监控进度
-5. GET /results     → 收集结果
+5. GET /results     → 收集结果，保存到 .batch_data/results.json
 ```
 
 ### 4. 作为 Worker 使用
