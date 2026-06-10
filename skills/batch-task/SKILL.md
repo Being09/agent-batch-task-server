@@ -19,8 +19,7 @@ Task Server 管理队列、状态机、超时回收、进度持久化。Agent �
 
 ## 前置条件
 
-- Python 3.8+ 或 Node.js 16+（二选一）
-- Task Type Config 文件（YAML 格式）
+- Node.js 16+（npx skills 安装时已具备）
 
 ## 分发内容
 
@@ -28,11 +27,8 @@ Task Server 管理队列、状态机、超时回收、进度持久化。Agent �
 batch-task-skill/
 ├── SKILL.md                    # 本文件
 ├── server/
-│   ├── python/
-│   │   └── server.py           # Python 版 Server（~200 行，stdlib only）
 │   ├── node/
-│   │   └── server.js           # Node.js 版 Server（~220 行，built-in only）
-│   └── task_types/
+│   │   └── server.js           # Node.js Server（built-in only，零外部依赖）
 │       ├── entity_extraction.yaml
 │       ├── code_review.yaml
 │       └── batch_translation.yaml
@@ -53,13 +49,6 @@ batch-task-skill/
    | 手动启动 | 新开终端窗口运行 |
 
    ```bash
-   # Python（零依赖）
-   # Windows PowerShell:
-   Start-Process python -ArgumentList "{skill_path}/server/python/server.py","5050" -WindowStyle Hidden
-   # Linux/macOS:
-   python {skill_path}/server/python/server.py 5050 &
-
-   # 或 Node.js（零依赖）
    # Windows PowerShell:
    Start-Process node -ArgumentList "{skill_path}/server/node/server.js","5050" -WindowStyle Hidden
    # Linux/macOS:

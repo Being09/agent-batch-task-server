@@ -1,7 +1,6 @@
 # Batch Task Skill
 
 <p>
-  <img src="https://img.shields.io/badge/Python-stdlib%20only-blue?logo=python&logoColor=white" alt="Python stdlib" />
   <img src="https://img.shields.io/badge/Node.js-built%20in%20only-339933?logo=node.js&logoColor=white" alt="Node.js built-in" />
   <img src="https://img.shields.io/badge/zero-dependencies-success" alt="Zero dependencies" />
   <img src="https://img.shields.io/badge/file-lock%20concurrency-safe-brightgreen" alt="Concurrency safe" />
@@ -24,8 +23,8 @@
 
 ## 优点
 
-- 🚫 **零依赖** — Python / Node.js 纯标准库，无需 pip install / npm install
-- 🏃 **一行启动** — `python server.py 5050`，无需数据库、消息队列等外部服务
+- 🚫 **零依赖** — Node.js 纯内置模块，无需 npm install
+- 🏃 **一行启动** — `node server.js 5050`，无需数据库、消息队列等外部服务
 - 🔒 **并发安全** — PID 文件锁 + 原子写入，多 Worker 不重复处理同一任务
 - 💾 **崩溃不丢** — 任务进度持久化到磁盘，重启后自动恢复
 - ⏰ **超时回收** — Worker 崩溃后 Server 自动回收卡住的任务重新分发
@@ -48,13 +47,6 @@ cp -r skills/batch-task/ ~/.config/opencode/skills/batch-task/
 Agent 应使用自身的后台执行机制（如 `run_in_background=true`）启动 Server：
 
 ```bash
-# Python（零依赖）
-# Windows PowerShell:
-Start-Process python -ArgumentList "server/python/server.py","5050" -WindowStyle Hidden
-# Linux/macOS:
-python server/python/server.py 5050 &
-
-# 或 Node.js（零依赖）
 # Windows PowerShell:
 Start-Process node -ArgumentList "server/node/server.js","5050" -WindowStyle Hidden
 # Linux/macOS:
@@ -210,14 +202,11 @@ constraints:
 | `POST` | `/shutdown` | 优雅关闭 Server |
 ## 文件结构
 
-```
 batch-task/
 ├── SKILL.md                    # Skill 入口（Orchestrator + Worker 工作流）
 ├── server/
-│   ├── python/
-│   │   └── server.py           # Python 版（stdlib only）
 │   ├── node/
-│   │   └── server.js           # Node.js 版（built-in only）
+│   │   └── server.js           # Node.js Server（built-in only，零外部依赖）
 │   └── task_types/
 │       ├── entity_extraction.yaml
 │       ├── code_review.yaml
@@ -225,13 +214,9 @@ batch-task/
 └── README.md
 ```
 
-## 依赖
-
-| 版本 | 外部依赖 | 标准库模块 |
-|------|---------|-----------|
-| Python | **无** | `http.server`, `json`, `os`, `time`, `threading`, `datetime`, `pathlib` |
+| 版本 | 外部依赖 | 内置模块 |
+|------|---------|---------|
 | Node.js | **无** | `http`, `fs`, `path` |
-
 ## License
 
 MIT
