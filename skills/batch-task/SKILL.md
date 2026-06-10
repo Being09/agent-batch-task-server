@@ -107,6 +107,17 @@ batch-task-skill/
    GET http://localhost:5050/results → { "chunk_001": {...}, "chunk_002": {...} }
    ```
 
+8. **关闭服务器**
+   所有任务完成后，必须关闭 Server 进程以释放端口和资源：
+   ```bash
+   # Windows (PowerShell)
+   Stop-Process -Id <server_pid> -Force
+
+   # Linux / macOS
+   kill <server_pid>
+   ```
+
+
 ---
 
 ## 模式二：Worker（执行者）
