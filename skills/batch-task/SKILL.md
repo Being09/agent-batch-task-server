@@ -44,14 +44,24 @@ batch-task-skill/
 ### 步骤
 
 1. **后台启动 Task Server**（不阻塞主 Agent 流程）
-   ```bash
-   # Python（零依赖，后台运行）
-   python {skill_path}/server/python/server.py 5050 &
 
-   # 或 Node.js（零依赖，后台运行）
-   node {skill_path}/server/node/server.js 5050 &
+   Agent 应使用自身的后台执行机制启动 Server，而非依赖 shell 后台语法：
+
+   | Agent 宿主 | 后台启动方式 |
+   |-----------|-------------|
+   | OpenCode / Claude Code | 使用 Bash/Shell 工具的 `run_in_background=true` 参数 |
+   | 手动启动 | 新开终端窗口运行 |
+
+   ```bash
+   # Python（零依赖）
+   python {skill_path}/server/python/server.py 5050
+
+   # 或 Node.js（零依赖）
+   node {skill_path}/server/node/server.js 5050
    ```
-   > Agent 应使用 Bash 工具后台执行 Server 启动命令，不应阻塞后续步骤。
+
+   > **Windows 注意**: 不要使用 `Start-Process -NoNewWindow`，它会阻塞调用者。
+   > 直接用 Agent 的后台机制，或新开终端窗口启动。
 
 2. **等待 Server 就绪**
    ```bash
