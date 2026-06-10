@@ -19,7 +19,9 @@ const path  = require("path");
 // ── 日志 ──────────────────────────────────────
 function log(msg) {
     const ts = new Date().toISOString().slice(11, 19);
-    console.log(`[${ts}] ${msg}`);
+    const line = `[${ts}] ${msg}`;
+    console.log(line);
+    try { fs.appendFileSync(path.join(DATA_DIR, 'server.log'), line + '\n'); } catch {}
 }
 
 // ── 路径与配置 ──────────────────────────────────
@@ -51,6 +53,7 @@ async function acquireLock(timeout = LOCK_TIMEOUT_MS) {
             if (e.code !== "EEXIST") throw e;
             // 双重死锁检测
             if (isStaleLock()) {
+                log(`LOCK   releasing stale lock (pid=${parts[0]})`);
                 try { fs.unlinkSync(LOCK_FILE); } catch {}
                 continue;
             }
@@ -80,8 +83,10 @@ function releaseLock() {
 }
 
 async function withQueue(fn) {
-    /** 带锁的队列操作: 获取锁 → 读取 → 回调修改 → 原子写回 → 释放锁 */
-    if (!await acquireLock()) throw new Error("Lock timeout");
+    if (!await acquireLock()) {
+        log(`LOCK   timeout after ${LOCK_TIMEOUT_MS}ms`);
+        throw new Error("Lock timeout");
+    }
     try {
         const data = JSON.parse(fs.readFileSync(QUEUE, "utf8"));
         const result = fn(data);
@@ -223,6 +228,8 @@ async function handle(req, res) {
         req.on("end", () => { try { resolve(JSON.parse(b)); } catch { resolve({}); } });
     });
     const json = (code, d) => {
+        const size = Buffer.byteLength(JSON.stringify(d));
+        log(`HTTP ${req.method} ${req.url} -> ${code} (${size}B)`);
         res.writeHead(code, { "Content-Type": "application/json; charset=utf-8" });
         res.end(JSON.stringify(d));
     };
@@ -296,5 +303,6 @@ if (require.main === module) {
     });
     srv.listen(port, "0.0.0.0", () => {
         log(`Listening on 0.0.0.0:${port}`);
+        log(`Log file: ${path.join(DATA_DIR, "server.log")}`);
     });
 }
