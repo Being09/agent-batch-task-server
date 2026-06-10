@@ -200,7 +200,7 @@ constraints:
 | `GET` | `/task/{id}` | 查询单个任务详情 |
 | `POST` | `/config` | 注册任务类型配置 |
 | `POST` | `/heartbeat` | Worker 心跳 |
-
+| `POST` | `/shutdown` | 优雅关闭 Server |
 ## 文件结构
 
 ```

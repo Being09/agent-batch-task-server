@@ -265,6 +265,13 @@ async function handle(req, res) {
             return json(200, { name: b.name, registered: true });
         }
         if (req.url === "/heartbeat") return json(200, { ack: true });
+        if (req.url === "/shutdown") {
+            log("SHUTDOWN requested");
+            // 先响应再退出
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ status: "shutting_down" }));
+            process.exit(0);
+        }
         return json(404, { error: "not found" });
     }
 

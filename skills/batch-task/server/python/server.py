@@ -369,6 +369,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._j(200, register_config(b.get("name", ""), b.get("config", {})))
         if self.path == "/heartbeat":
             return self._j(200, {"ack": True})
+        if self.path == "/shutdown":
+            log("SHUTDOWN requested")
+            threading.Thread(target=self.server.shutdown).start()
+            return self._j(200, {"status": "shutting_down"})
         self._j(404, {"error": "not found"})
 
     def log_message(self, code, size):

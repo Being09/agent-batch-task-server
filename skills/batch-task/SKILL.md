@@ -108,13 +108,9 @@ batch-task-skill/
    ```
 
 8. **关闭服务器**
-   所有任务完成后，必须关闭 Server 进程以释放端口和资源：
-   ```bash
-   # Windows (PowerShell)
-   Stop-Process -Id <server_pid> -Force
-
-   # Linux / macOS
-   kill <server_pid>
+   所有任务完成后，调用 shutdown 端点优雅关闭 Server：
+   ```
+   POST http://localhost:5050/shutdown → {"status": "shutting_down"}
    ```
 
 
