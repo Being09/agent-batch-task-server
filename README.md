@@ -11,97 +11,150 @@
 
 ⚡ **将超出 LLM 单次上下文长度的超大任务，拆分为可并行处理的小任务，突破上下文窗口限制。**
 
-## 适用场景
+---
 
-- 📂 **批量代码审查** — 50 个文件分发给多个 Agent 并行审查，结果自动汇总
-- 🔗 **批量实体提取** — 长文档拆分为片段，并行提取实体和关系，构建知识图谱
-- 🌐 **批量翻译** — 大量文本片段分发给 Agent 翻译，进度持久化不怕中断
-- 🏷️ **批量数据标注** — 数据集拆分为小任务，多个 Agent 并行标注
-- 🧪 **批量测试生成** — 为每个源文件生成单元测试，并行处理
+<!-- FOR HUMANS -->
 
-## 优点
+## 这是什么
 
-- 🚫 **零依赖** — Node.js 纯内置模块，无需 npm install
-- 🏃 **一行启动** — `node server.js 5050`，无需数据库、消息队列等外部服务
-- 🔒 **并发安全** — PID 文件锁 + 原子写入，多 Worker 不重复处理同一任务
-- 💾 **崩溃不丢** — 任务进度持久化到磁盘，重启后自动恢复
-- ⏰ **超时回收** — Worker 崩溃后 Server 自动回收卡住的任务重新分发
-- 📝 **YAML 接入** — 新任务类型只需写一个配置文件，Server 和 Skill 零修改
+一个 Skill + 零依赖 HTTP Server，让 AI Agent 能**可靠地并行处理批量任务**。
 
-## 快速开始
+### 解决什么问题
+
+单个 Agent 处理批量任务时：上下文窗口放不下、崩溃就全丢、多个 Agent 会重复干活。这个 Skill 通过一个持久化队列 Server 把任务拆开、分发、收集，Worker 崩了自动回收，进度不丢。
+
+### 适用场景
+
+- 📂 **批量代码审查** — 50 个文件分发给多个 Agent 并行审查
+- 🔗 **批量实体提取** — 长文档拆分后并行提取知识图谱
+- 🌐 **批量翻译** — 大量文本并行翻译，不怕中断
+- 🏷️ **批量数据标注** — 数据集拆分后多 Agent 并行标注
+- 🧪 **批量测试生成** — 为每个源文件并行生成单元测试
+
+### 怎么工作
+
+```
+Orchestrator（你）──提交任务──→ Server（队列）──分发──→ Workers（并行处理）
+                                   ↕ 持久化              ↕ 崩溃自动回收
+                               ←──收集结果──←─────────────
+```
+
+**三层分离**：YAML 配置定义任务类型 → Server 管理队列和并发 → Worker Skill 模板执行循环。接入新任务 = 写一个 YAML。
+
+### 技术特点
+
+- 🚫 **零依赖** — Node.js 内置模块，不装任何东西
+- 🔒 **并发安全** — 文件锁原子操作，多 Worker 不重复
+- 💾 **崩溃不丢** — 进度持久化到 `.batch_data/`
+- ⏰ **超时回收** — Worker 挂了任务自动重新分发
+- 📝 **YAML 接入** — 新任务类型只写配置
+
+### 安装
 
 ```bash
-# 安装
 npx skills add Being09/agent-batch-task-server
-
-# 启动 Server（后台运行）
-# Windows:
-Start-Process node -ArgumentList "server/node/server.js","5050" -WindowStyle Hidden
-# Linux/macOS:
-node server/node/server.js 5050 &
 ```
 
-> **Windows**: `Start-Process ... -WindowStyle Hidden` 脱离终端运行。
-> **Linux/macOS**: `&` 后台运行，或用 Agent 的 `run_in_background=true`。
-> **不要用** `Start-Process -NoNewWindow`（会阻塞）。
-
-## 工作流程
-
-```
-Orchestrator                    Task Server                    Workers
-    │                               │                            │
-    ├── POST /config ────────────→  │  注册任务类型                │
-    ├── POST /batch ─────────────→  │  提交批量任务               │
-    ├── 发射 Worker × N ─────────→  │                            │
-    │                               │  ←── GET /next_task ────── Worker 拉取
-    │                               │                            │  处理 payload
-    │                               │  ──── POST /result ──────→  Worker 提交
-    ├── GET /progress ────────────→  │  监控进度                   │
-    ├── GET /results ─────────────→  │  收集结果                   │
-    ├── POST /shutdown ───────────→  │  关闭服务器                 │
-    │                               │                            │
-    └── 保存到 .batch_data/results.json
-```
-
-详细步骤、Worker 循环、错误处理 → 参考 [SKILL.md](skills/batch-task/SKILL.md)
-
-## 原理
-
-Pull-Push 架构 + 三层分离设计：
-
-| 层 | 职责 | 扩展方式 |
-|----|------|---------|
-| **Task Type Config (YAML)** | 怎么拆、任务长什么样、Worker 行为 | 写新 YAML |
-| **Generic Task Server** | 队列、状态机、超时回收、并发安全 | 零修改 |
-| **Worker Skill** | Pull→Process→Push 循环模板 | 零修改 |
-
-**并发安全**：`O_CREAT|O_EXCL` 原子文件锁 + tmp/rename 原子写入 + PID 存活检测死锁恢复。
-
-**任务状态**：`Pending → Dispatched → Completed`（超时自动回收到 pending，超过重试上限则 `PermanentlyFailed`）
-
-接入新任务类型 = **只写一个 YAML**。完整 Schema、API、示例 → [SKILL.md](skills/batch-task/SKILL.md)
-
-## 文件结构
+### 文件结构
 
 ```
 batch-task/
-├── SKILL.md                    # Skill 入口（详细工作流、API、错误处理）
+├── SKILL.md              # Agent 工作流说明书（LLM 阅读此文件）
 ├── server/
-│   ├── node/
-│   │   └── server.js           # Node.js Server（built-in only）
-│   └── task_types/
-│       ├── entity_extraction.yaml
-│       ├── code_review.yaml
-│       └── batch_translation.yaml
+│   ├── node/server.js    # 零依赖 Task Server
+│   └── task_types/*.yaml  # 任务类型配置（可扩展）
 └── README.md
 ```
 
-## 依赖
+### 运行时产物
 
-| 版本 | 外部依赖 | 内置模块 |
-|------|---------|---------|
-| Node.js | **无** | `http`, `fs`, `path` |
+所有运行时数据存放在 `.batch_data/`（已 gitignore）：
 
-## License
+```
+.batch_data/
+├── queue.json       # 任务队列（持久化）
+├── server.log       # 运行日志
+└── results.json     # Orchestrator 保存的最终结果
+```
+
+### License
 
 MIT
+
+---
+
+<!-- LLM-ONLY-START -->
+
+## LLM Instructions
+
+你是 Orchestrator 或 Worker。加载本 Skill 后，按以下指令执行。
+
+### 模式一：Orchestrator
+
+1. **启动 Server**（后台，不阻塞）
+   - Windows: `Start-Process node -ArgumentList "{skill_path}/server/node/server.js","5050" -WindowStyle Hidden`
+   - Linux/macOS: `node {skill_path}/server/node/server.js 5050 &`
+   - 禁止使用 `Start-Process -NoNewWindow`（会阻塞）
+
+2. **等待就绪** — `GET http://localhost:5050/health` → `{"status":"healthy"}`
+
+3. **注册配置** — `POST /config`，读取 `server/task_types/*.yaml`
+
+4. **提交任务** — `POST /batch { batch_id, task_type, tasks: [...] }`
+
+5. **发射 Worker** — `run_in_background=true`，每个 Worker 加载本 Skill 模式二
+
+6. **监控进度** — `GET /progress`，每 30 秒查询，直到 100%
+
+7. **收集结果** — `GET /results`，保存到 `.batch_data/results.json`
+
+8. **关闭 Server** — `POST /shutdown`
+
+### 模式二：Worker
+
+循环执行直到 `GET /next_task` 返回 204：
+
+```
+GET /next_task → 200: 处理 payload → POST /result → 继续
+GET /next_task → 204: 退出
+```
+
+- 5xx: 等 5 秒重试（最多 3 次）
+- 4xx: 记录错误，跳过
+- 处理失败: 提交部分结果
+
+### API
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/batch` | 提交任务（幂等） |
+| `GET` | `/next_task` | 拉取任务（204=空） |
+| `POST` | `/result` | 提交结果（幂等） |
+| `GET` | `/progress` | 查询进度 |
+| `GET` | `/results` | 收集结果 |
+| `GET` | `/health` | 健康检查 |
+| `POST` | `/shutdown` | 关闭 Server |
+
+### YAML Config Schema
+
+```yaml
+name: task_type_name
+description: "描述"
+split:
+  method: text_chunk        # text_chunk | line_by_line | file_per_item | json_array | csv_rows | directory_tree
+  source: "./data/*.txt"
+  params:
+    chunk_size: 2000
+    overlap: 200
+task_input:
+  content: { type: string, required: true }
+task_output:
+  result: { type: string, required: true }
+worker_prompt: |
+  你的任务指令...
+constraints:
+  max_time_per_task: 60
+  max_retries: 3
+```
+
+<!-- LLM-ONLY-END -->
